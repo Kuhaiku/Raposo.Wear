@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raposo.Wear | Catálogo</title>
     <style>
-        /* Estilo Limpo e Organizado */
         :root {
             --primary-color: #1a1a1a;
             --accent-color: #007bff;
             --bg-color: #f4f4f9;
             --card-bg: #ffffff;
             --text-color: #333333;
+            --cart-bg: #ffffff;
         }
 
         body {
@@ -28,6 +28,23 @@
             padding: 1.5rem;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Botão do Carrinho no Cabeçalho */
+        .cart-toggle-btn {
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
         }
 
         .container {
@@ -42,27 +59,19 @@
             gap: 2rem;
         }
 
-        /* Cartão de Produto */
         .product-card {
             background-color: var(--card-bg);
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
         }
 
         .product-image {
             width: 100%;
             height: 250px;
             object-fit: cover;
-            background-color: #e9ecef; /* Placeholder caso não tenha imagem */
         }
 
         .product-info {
@@ -70,18 +79,6 @@
             display: flex;
             flex-direction: column;
             flex-grow: 1;
-        }
-
-        .product-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 0 0 0.5rem 0;
-        }
-
-        .product-size {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 1rem;
         }
 
         .product-price {
@@ -92,8 +89,7 @@
             margin-top: auto;
         }
 
-        /* Botão com Feedback Visual */
-        .btn-buy {
+        .btn-add {
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -101,33 +97,105 @@
             border-radius: 4px;
             font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.2s;
-            width: 100%;
+            transition: 0.2s;
             font-weight: 600;
         }
 
-        .btn-buy:hover {
-            background-color: #333;
+        .btn-add:hover { background-color: #333; }
+
+        /* Painel Lateral do Carrinho */
+        .cart-overlay {
+            position: fixed;
+            top: 0; right: 0; bottom: 0; left: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 998;
         }
 
-        .btn-buy:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+        .cart-sidebar {
+            position: fixed;
+            top: 0; right: -400px;
+            width: 100%;
+            max-width: 350px;
+            height: 100vh;
+            background: var(--cart-bg);
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Estado de loading/erro */
-        #status-message {
-            text-align: center;
-            font-size: 1.2rem;
-            margin-top: 2rem;
-            color: #666;
+        .cart-sidebar.open { right: 0; }
+        
+        .cart-header {
+            padding: 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+
+        .cart-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .cart-items {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .cart-item-info h4 { margin: 0 0 0.5rem 0; font-size: 1rem; }
+        .cart-item-remove { color: red; cursor: pointer; font-size: 0.8rem; border: none; background: none; padding: 0;}
+
+        .cart-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #eee;
+        }
+
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .btn-checkout {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 1rem;
+            width: 100%;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-checkout:disabled { background-color: #ccc; cursor: not-allowed; }
+
     </style>
 </head>
 <body>
 
     <header>
         <h1>Raposo.Wear</h1>
+        <button class="cart-toggle-btn" onclick="toggleCart()">🛒 Carrinho (<span id="cart-count">0</span>)</button>
     </header>
 
     <div class="container">
@@ -135,72 +203,153 @@
         <div class="products-grid" id="products-container"></div>
     </div>
 
-    <script>
-     const API_URL = '/api';
-        const productsContainer = document.getElementById('products-container');
-        const statusMessage = document.getElementById('status-message');
+    <div class="cart-overlay" id="cart-overlay" onclick="toggleCart()"></div>
+    <div class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-header">
+            <h2>Seu Carrinho</h2>
+            <button class="cart-close" onclick="toggleCart()">&times;</button>
+        </div>
+        <div class="cart-items" id="cart-items-container">
+            </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cart-total-price">R$ 0,00</span>
+            </div>
+            <button class="btn-checkout" id="btn-checkout" onclick="handleCheckout()">Finalizar Compra</button>
+        </div>
+    </div>
 
-        // 1. Carregar produtos do backend
+    <script>
+        const API_URL = '/api'; 
+        const productsContainer = document.getElementById('products-container');
+        
+        // Estado do Carrinho (Puxa do localStorage ou inicia vazio)
+        let cart = JSON.parse(localStorage.getItem('raposoCart')) || [];
+
         async function loadProducts() {
             try {
                 const response = await fetch(`${API_URL}/products`);
-                if (!response.ok) throw new Error('Falha ao carregar');
-                
+                if (!response.ok) throw new Error('Falha');
                 const products = await response.json();
                 renderProducts(products);
+                updateCartUI(); // Atualiza a interface do carrinho ao carregar
             } catch (error) {
-                console.error(error);
-                statusMessage.textContent = 'Erro ao carregar os produtos. Tente novamente mais tarde.';
+                document.getElementById('status-message').textContent = 'Erro ao carregar produtos.';
             }
         }
 
-        // 2. Renderizar produtos na interface limpa
         function renderProducts(products) {
-            statusMessage.style.display = 'none';
-            productsContainer.innerHTML = '';
-
-            if (products.length === 0) {
-                statusMessage.textContent = 'Nenhum produto disponível no momento.';
-                statusMessage.style.display = 'block';
-                return;
-            }
-
+            document.getElementById('status-message').style.display = 'none';
             products.forEach(product => {
                 const card = document.createElement('div');
                 card.className = 'product-card';
                 card.innerHTML = `
-                    <img src="${product.image_url || 'https://via.placeholder.com/250x250?text=Sem+Foto'}" alt="${product.name}" class="product-image" onerror="this.src='https://via.placeholder.com/250x250?text=Erro+na+Imagem'">
+                    <img src="${product.image_url || 'https://via.placeholder.com/250x250?text=Sem+Foto'}" class="product-image">
                     <div class="product-info">
-                        <h3 class="product-name">${product.name}</h3>
-                        <span class="product-size">Tamanho: ${product.size}</span>
+                        <h3>${product.name}</h3>
+                        <span>Tamanho: ${product.size}</span>
                         <div class="product-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</div>
-                        <button class="btn-buy" onclick="handleBuy(${product.id}, this)">Comprar</button>
+                        <button class="btn-add" onclick="addToCart(${product.id}, '${product.name}', ${product.price}, this)">Adicionar ao Carrinho</button>
                     </div>
                 `;
                 productsContainer.appendChild(card);
             });
         }
 
-        // 3. Processar clique de compra com feedback visual
-        async function handleBuy(productId, buttonElement) {
-            // Feedback visual imediato
-            const originalText = buttonElement.textContent;
-            buttonElement.textContent = 'Processando...';
-            buttonElement.disabled = true;
+        // --- Lógica do Carrinho ---
 
-            // Mock de um email do cliente (no estado zero, podemos fixar ou pedir num prompt simples)
-            // Em uma versão futura, isso viria de um formulário de checkout
+        function addToCart(id, name, price, btnElement) {
+            // Verifica se já existe, se sim, soma 1. Se não, adiciona.
+            const existingItem = cart.find(item => item.id === id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ id, name, price, quantity: 1 });
+            }
+            
+            saveCart();
+            updateCartUI();
+
+            // Feedback Visual
+            const originalText = btnElement.textContent;
+            btnElement.textContent = '✔ Adicionado!';
+            btnElement.style.backgroundColor = '#28a745';
+            setTimeout(() => {
+                btnElement.textContent = originalText;
+                btnElement.style.backgroundColor = 'var(--primary-color)';
+            }, 1000);
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id !== id);
+            saveCart();
+            updateCartUI();
+        }
+
+        function saveCart() {
+            localStorage.setItem('raposoCart', JSON.stringify(cart));
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cart-items-container');
+            const countSpan = document.getElementById('cart-count');
+            const totalSpan = document.getElementById('cart-total-price');
+            const btnCheckout = document.getElementById('btn-checkout');
+
+            container.innerHTML = '';
+            let total = 0;
+            let count = 0;
+
+            if (cart.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#666;">Seu carrinho está vazio.</p>';
+                btnCheckout.disabled = true;
+            } else {
+                btnCheckout.disabled = false;
+                cart.forEach(item => {
+                    total += item.price * item.quantity;
+                    count += item.quantity;
+
+                    container.innerHTML += `
+                        <div class="cart-item">
+                            <div class="cart-item-info">
+                                <h4>${item.name}</h4>
+                                <span>${item.quantity}x R$ ${Number(item.price).toFixed(2).replace('.', ',')}</span>
+                            </div>
+                            <button class="cart-item-remove" onclick="removeFromCart(${item.id})">Remover</button>
+                        </div>
+                    `;
+                });
+            }
+
+            countSpan.textContent = count;
+            totalSpan.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        function toggleCart() {
+            const sidebar = document.getElementById('cart-sidebar');
+            const overlay = document.getElementById('cart-overlay');
+            sidebar.classList.toggle('open');
+            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+        }
+
+        // --- Finalizar Compra ---
+
+        async function handleCheckout() {
+            if (cart.length === 0) return;
+
+            const btnCheckout = document.getElementById('btn-checkout');
+            btnCheckout.textContent = 'Gerando Pagamento...';
+            btnCheckout.disabled = true;
+
             const customerEmail = prompt("Para enviar o recibo, informe seu e-mail:") || "cliente@email.com";
 
             try {
                 const response = await fetch(`${API_URL}/create_preference`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        productId: productId,
-                        quantity: 1,
+                        cartItems: cart, // Envia o array inteiro
                         customerEmail: customerEmail
                     })
                 });
@@ -208,22 +357,22 @@
                 const data = await response.json();
 
                 if (data.init_point) {
-                    // Redireciona o usuário para o ambiente seguro do Mercado Pago
+                    // Limpa o carrinho ao direcionar pro pagamento
+                    localStorage.removeItem('raposoCart'); 
                     window.location.href = data.init_point;
                 } else {
-                    throw new Error('Link de pagamento não gerado');
+                    throw new Error('Link não gerado');
                 }
 
             } catch (error) {
                 console.error(error);
-                alert('Erro ao iniciar o pagamento. Tente novamente.');
-                // Restaura o botão em caso de erro
-                buttonElement.textContent = originalText;
-                buttonElement.disabled = false;
+                alert('Erro ao processar compra.');
+                btnCheckout.textContent = 'Finalizar Compra';
+                btnCheckout.disabled = false;
             }
         }
 
-        // Inicia a aplicação
+        // Inicia
         loadProducts();
     </script>
 </body>

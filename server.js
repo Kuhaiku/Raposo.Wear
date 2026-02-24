@@ -12,7 +12,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuração para servir o Frontend (HTML/CSS/JS)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'public')));
@@ -29,10 +28,9 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// 2. Configuração do Mercado Pago
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 
-// 3. Rota para listar os produtos
+// 2. Rota para listar os produtos
 app.get('/api/products', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM products WHERE stock > 0');
@@ -42,31 +40,46 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// 4. Rota para criar a preferência de pagamento
+// 3. Rota para criar a preferência de pagamento (Agora aceita Múltiplos Itens)
 app.post('/api/create_preference', async (req, res) => {
-  const { productId, quantity, customerEmail } = req.body;
+  const { cartItems, customerEmail } = req.body; // cartItems = [{ id, quantity }]
+
+  if (!cartItems || cartItems.length === 0) {
+    return res.status(400).json({ error: 'Carrinho vazio' });
+  }
 
   try {
-    const [products] = await pool.query('SELECT * FROM products WHERE id = ?', [productId]);
-    const product = products[0];
+    // Extrai apenas os IDs para buscar no banco
+    const productIds = cartItems.map(item => item.id);
+    
+    // Busca os produtos originais no banco para garantir os preços reais
+    const [products] = await pool.query('SELECT * FROM products WHERE id IN (?)', [productIds]);
 
-    if (!product) return res.status(404).json({ error: 'Produto não encontrado' });
+    if (products.length === 0) return res.status(404).json({ error: 'Produtos não encontrados' });
+
+    let totalOrder = 0;
+    
+    // Monta o array de itens no formato que o Mercado Pago exige
+    const mpItems = cartItems.map(cartItem => {
+      const dbProduct = products.find(p => p.id === cartItem.id);
+      if (!dbProduct) throw new Error(`Produto ${cartItem.id} inválido`);
+
+      totalOrder += dbProduct.price * cartItem.quantity;
+
+      return {
+        id: dbProduct.id.toString(),
+        title: dbProduct.name,
+        quantity: cartItem.quantity,
+        unit_price: Number(dbProduct.price),
+        currency_id: 'BRL',
+      };
+    });
 
     const preference = new Preference(client);
     const result = await preference.create({
       body: {
-        items: [
-          {
-            id: product.id.toString(),
-            title: product.name,
-            quantity: quantity,
-            unit_price: Number(product.price),
-            currency_id: 'BRL',
-          }
-        ],
-        payer: {
-          email: customerEmail
-        },
+        items: mpItems,
+        payer: { email: customerEmail },
         back_urls: {
           success: `${process.env.FRONTEND_URL}?status=sucesso`,
           failure: `${process.env.FRONTEND_URL}?status=falha`,
@@ -77,10 +90,10 @@ app.post('/api/create_preference', async (req, res) => {
       }
     });
 
-    const total = product.price * quantity;
+    // Registra o pedido no banco com o valor total calculado
     await pool.query(
       'INSERT INTO orders (customer_email, total, mp_preference_id) VALUES (?, ?, ?)',
-      [customerEmail, total, result.id]
+      [customerEmail, totalOrder, result.id]
     );
 
     res.json({ id: result.id, init_point: result.init_point });
