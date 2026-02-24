@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raposo.Wear | Catálogo</title>
+    <style>
+        /* Estilo Limpo e Organizado */
+        :root {
+            --primary-color: #1a1a1a;
+            --accent-color: #007bff;
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        /* Cartão de Produto */
+        .product-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            background-color: #e9ecef; /* Placeholder caso não tenha imagem */
+        }
+
+        .product-info {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .product-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .product-size {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .product-price {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            margin-top: auto;
+        }
+
+        /* Botão com Feedback Visual */
+        .btn-buy {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        .btn-buy:hover {
+            background-color: #333;
+        }
+
+        .btn-buy:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* Estado de loading/erro */
+        #status-message {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Raposo.Wear</h1>
+    </header>
+
+    <div class="container">
+        <div id="status-message">Carregando catálogo...</div>
+        <div class="products-grid" id="products-container"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api'; // Ajuste para a URL do seu backend em produção
+        const productsContainer = document.getElementById('products-container');
+        const statusMessage = document.getElementById('status-message');
+
+        // 1. Carregar produtos do backend
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${API_URL}/products`);
+                if (!response.ok) throw new Error('Falha ao carregar');
+                
+                const products = await response.json();
+                renderProducts(products);
+            } catch (error) {
+                console.error(error);
+                statusMessage.textContent = 'Erro ao carregar os produtos. Tente novamente mais tarde.';
+            }
+        }
+
+        // 2. Renderizar produtos na interface limpa
+        function renderProducts(products) {
+            statusMessage.style.display = 'none';
+            productsContainer.innerHTML = '';
+
+            if (products.length === 0) {
+                statusMessage.textContent = 'Nenhum produto disponível no momento.';
+                statusMessage.style.display = 'block';
+                return;
+            }
+
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <img src="${product.image_url || 'https://via.placeholder.com/250x250?text=Sem+Foto'}" alt="${product.name}" class="product-image" onerror="this.src='https://via.placeholder.com/250x250?text=Erro+na+Imagem'">
+                    <div class="product-info">
+                        <h3 class="product-name">${product.name}</h3>
+                        <span class="product-size">Tamanho: ${product.size}</span>
+                        <div class="product-price">R$ ${Number(product.price).toFixed(2).replace('.', ',')}</div>
+                        <button class="btn-buy" onclick="handleBuy(${product.id}, this)">Comprar</button>
+                    </div>
+                `;
+                productsContainer.appendChild(card);
+            });
+        }
+
+        // 3. Processar clique de compra com feedback visual
+        async function handleBuy(productId, buttonElement) {
+            // Feedback visual imediato
+            const originalText = buttonElement.textContent;
+            buttonElement.textContent = 'Processando...';
+            buttonElement.disabled = true;
+
+            // Mock de um email do cliente (no estado zero, podemos fixar ou pedir num prompt simples)
+            // Em uma versão futura, isso viria de um formulário de checkout
+            const customerEmail = prompt("Para enviar o recibo, informe seu e-mail:") || "cliente@email.com";
+
+            try {
+                const response = await fetch(`${API_URL}/create_preference`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productId: productId,
+                        quantity: 1,
+                        customerEmail: customerEmail
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.init_point) {
+                    // Redireciona o usuário para o ambiente seguro do Mercado Pago
+                    window.location.href = data.init_point;
+                } else {
+                    throw new Error('Link de pagamento não gerado');
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert('Erro ao iniciar o pagamento. Tente novamente.');
+                // Restaura o botão em caso de erro
+                buttonElement.textContent = originalText;
+                buttonElement.disabled = false;
+            }
+        }
+
+        // Inicia a aplicação
+        loadProducts();
+    </script>
+</body>
+</html>
